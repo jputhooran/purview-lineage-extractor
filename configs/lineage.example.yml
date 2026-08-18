@@ -1,0 +1,60 @@
+version: 1
+
+runtime:
+  output_dir: ../artifacts/models
+  state_file: ../artifacts/state.json
+  manifest_dir: ../artifacts/manifests
+
+publishers:
+  development-purview:
+    plugin: purview
+    account: ${PURVIEW_ACCOUNT:-devpurview006}
+    auth:
+      type: ${PURVIEW_AUTH_TYPE:-azure_cli}
+    manage_types: true
+    allow_process_fallback: true
+    timeout_seconds: 90
+    retry:
+      max_attempts: 5
+      initial_delay_seconds: 1
+      maximum_delay_seconds: 30
+      jitter_ratio: 0.2
+
+jobs:
+  - name: ssis-packages
+    extractor: ssis
+    source:
+      path: ../..
+      include: "*.dtsx"
+      exclude:
+        - "ComplexPackage (1).dtsx"
+    publishers:
+      - development-purview
+    emit_legacy_model: true
+    continue_on_error: true
+
+  - name: sales-stored-procedures
+    extractor: sqlserver-stored-procedure
+    source:
+      server: '${SQLSERVER_HOST:-localhost\MSSQLSERVER2}'
+      database: SPLineageDW
+      schema: dbo
+      backend: auto
+      procedures:
+        - usp_LoadProcedureSales
+    publishers:
+      - development-purview
+    emit_legacy_model: true
+    continue_on_error: true
+
+  - name: external-etl-models
+    enabled: false
+    extractor: json-model
+    source:
+      path: ../incoming-models
+      include: "*.json"
+      format: auto
+    publishers:
+      - development-purview
+    continue_on_error: true
+

@@ -1,0 +1,7 @@
+include README.md
+recursive-include configs *.yml
+recursive-include docs *.md
+recursive-include scripts *.ps1
+recursive-include src/lineage_utility/schemas *.json
+recursive-include tests *.py
+recursive-include tests/fixtures *.dtsx *.sql
