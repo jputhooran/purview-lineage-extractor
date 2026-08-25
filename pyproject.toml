@@ -41,9 +41,9 @@ dev = [
 lineage-util = "lineage_utility.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/jijo-ms/purview-lineage-extractor"
-Repository = "https://github.com/jijo-ms/purview-lineage-extractor.git"
-Issues = "https://github.com/jijo-ms/purview-lineage-extractor/issues"
+Homepage = "https://github.com/jputhooran/purview-lineage-extractor"
+Repository = "https://github.com/jputhooran/purview-lineage-extractor.git"
+Issues = "https://github.com/jputhooran/purview-lineage-extractor/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -157,7 +157,7 @@ No C# build or subprocess is required.
 ## Installation
 
 ```powershell
-git clone https://github.com/jijo-ms/purview-lineage-extractor.git
+git clone https://github.com/jputhooran/purview-lineage-extractor.git
 cd .\purview-lineage-extractor
 
 python -m venv .venv
