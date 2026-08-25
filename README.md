@@ -383,3 +383,17 @@ python -m build
 
 The test suite does not require a live Purview account. Live SQL Server and
 Purview checks should use isolated non-production resources.
+
+## Contributing and security
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the
+development workflow, architecture boundaries, fixture requirements, and pull
+request expectations.
+
+Report vulnerabilities privately by following [SECURITY.md](SECURITY.md). Do
+not include credentials or vulnerability details in a public issue.
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE). This permissive license
+includes an explicit patent grant for contributors and users.
