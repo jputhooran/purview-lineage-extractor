@@ -6,11 +6,11 @@ runtime:
   manifest_dir: ../artifacts/manifests
 
 publishers:
-  development-purview:
+  purview:
     plugin: purview
-    account: ${PURVIEW_ACCOUNT:-devpurview006}
+    account: ${PURVIEW_ACCOUNT}
     auth:
-      type: ${PURVIEW_AUTH_TYPE:-azure_cli}
+      type: ${PURVIEW_AUTH_TYPE:-default}
     manage_types: true
     allow_process_fallback: true
     timeout_seconds: 90
@@ -24,27 +24,26 @@ jobs:
   - name: ssis-packages
     extractor: ssis
     source:
-      path: ../..
+      path: ${SSIS_PACKAGE_DIR:-../tests/fixtures}
       include: "*.dtsx"
       exclude:
-        - "ComplexPackage (1).dtsx"
+        - "*.disabled.dtsx"
     publishers:
-      - development-purview
-    emit_legacy_model: true
+      - purview
     continue_on_error: true
 
-  - name: sales-stored-procedures
+  - name: warehouse-procedures
+    enabled: false
     extractor: sqlserver-stored-procedure
     source:
-      server: '${SQLSERVER_HOST:-localhost\MSSQLSERVER2}'
-      database: SPLineageDW
-      schema: dbo
+      server: '${SQLSERVER_HOST:-localhost}'
+      database: ${SQLSERVER_DATABASE:-Warehouse}
+      schema: ${SQLSERVER_SCHEMA:-dbo}
       backend: auto
       procedures:
-        - usp_LoadProcedureSales
+        - usp_LoadOrders
     publishers:
-      - development-purview
-    emit_legacy_model: true
+      - purview
     continue_on_error: true
 
   - name: external-etl-models
@@ -55,6 +54,5 @@ jobs:
       include: "*.json"
       format: auto
     publishers:
-      - development-purview
+      - purview
     continue_on_error: true
-
