@@ -52,25 +52,96 @@ depending on source-specific parser details.
 | `sqlserver-stored-procedure` | SQL Server procedure definitions | Permanent-table `INSERT ... SELECT`, aliases, joins, cross-database references, and scalar expressions |
 | `json-model` | Canonical lineage JSON | Assets, fields, processes, edges, and field mappings supplied by another system |
 
-## Repository layout
+## How the pieces work together
+
+A lineage run moves through the project in this order:
+
+1. **CLI** reads the command and YAML configuration.
+2. **Orchestration** expands environment variables, resolves paths, and creates
+   the configured jobs.
+3. **Plugin registry** selects the required extractor and publisher
+   implementations.
+4. **Extractor** discovers source targets and parses each package, procedure, or
+   JSON model.
+5. **Domain model** validates the result and creates a deterministic
+   fingerprint.
+6. **Runner** writes the canonical model and manifest, then checks state to
+   determine whether publication is required.
+7. **Purview publisher** maps the canonical graph to Atlas entities, publishes
+   them, and reads them back for verification.
+8. **Observability** records progress and failures throughout the run.
+
+The `plan` command stops after writing models and manifests. The `run` command
+continues through publication and updates incremental state after success.
+
+## Repository guide
 
 ```text
 purview-lineage-extractor/
-  configs/                  Example multi-ETL configuration
-  docs/                     Plugin authoring documentation
-  scripts/                  PowerShell runner
+  configs/
+  docs/
+  scripts/
   src/lineage_utility/
-    contracts/              Extractor and publisher protocols
-    domain/                 Canonical graph and validation
-    extractors/             Built-in source adapters
-    orchestration/          Configuration, state, and job runner
-    plugins/                Built-in and entry-point registry
-    publishers/purview/     Authentication, Atlas client, mapping, and verification
-    schemas/                Configuration and lineage JSON schemas
-    observability/          Text and JSON logging
-    cli.py                  Command-line interface
-  tests/                    Unit and compatibility tests
+    contracts/
+    domain/
+    extractors/
+      ssis/
+      sqlserver/
+      json_model.py
+    orchestration/
+    plugins/
+    publishers/
+      purview/
+    schemas/
+    observability/
+    cli.py
+    __main__.py
+  tests/
+  pyproject.toml
+  MANIFEST.in
+  README.md
 ```
+
+### Root folders and files
+
+| Path | What it does | Why it is useful |
+|---|---|---|
+| `configs/` | Contains the example YAML configuration for runtime paths, publishers, and extraction jobs. | Operators can add sources or change deployment settings without modifying Python code. |
+| `docs/` | Contains detailed extension guidance, including plugin authoring. | Keeps contributor documentation separate from the main getting-started guide. |
+| `scripts/` | Contains convenience wrappers such as `run-lineage.ps1`. | Makes scheduled tasks and Windows operations easier while still using the same Python CLI. |
+| `src/lineage_utility/` | Contains the installable application package. | Keeps application code isolated from configuration, documentation, and tests. |
+| `tests/` | Contains parser, domain, orchestration, plugin, and Purview mapping tests plus safe local fixtures. | Verifies behavior without requiring a live Purview account. |
+| `pyproject.toml` | Defines package metadata, pinned dependencies, optional integrations, and the `lineage-util` command. | Provides reproducible installation and build behavior. |
+| `MANIFEST.in` | Declares non-Python files that must be included in source distributions. | Ensures schemas, examples, documentation, and fixtures are packaged correctly. |
+| `README.md` | Provides installation, configuration, operation, and architecture guidance. | Gives users and contributors one public entry point into the project. |
+
+### Application package
+
+| Path | What it does | How it fits into the big picture |
+|---|---|---|
+| `contracts/` | Defines the interfaces for extractors, publishers, credentials, and state stores. | Decouples components so new ETL sources or catalog targets can be added without changing the runner. |
+| `domain/` | Defines assets, fields, processes, mappings, serialization, validation, and fingerprinting. | Acts as the shared language between every extractor and publisher. |
+| `extractors/` | Hosts built-in adapters that convert source-specific metadata into the canonical domain model. | Keeps source parsing independent from orchestration and Purview APIs. |
+| `extractors/ssis/` | Discovers and parses top-level SSIS `.dtsx` packages, data flows, tables, columns, and expressions. | Provides SSIS lineage while avoiding generated `obj` and `bin` package copies. |
+| `extractors/sqlserver/` | Reads stored-procedure definitions through `pyodbc` and parses supported T-SQL with ScriptDom or `sqlglot`. | Produces reliable procedure lineage without requiring a C# project or subprocess. |
+| `extractors/json_model.py` | Loads lineage graphs emitted by another application. | Allows any ETL platform to integrate by producing the canonical JSON contract. |
+| `orchestration/` | Loads configuration, coordinates targets, handles failure isolation, writes manifests, and manages incremental state and locking. | Turns individual parsers and publishers into a repeatable multi-job utility. |
+| `plugins/` | Registers built-in components and discovers external Python entry points. | Enables modular extension without hard-coding every implementation into the CLI. |
+| `publishers/purview/` | Handles Azure authentication, Atlas HTTP calls, type definitions, entity mapping, GUID reuse, retries, and read-back verification. | Isolates all Microsoft Purview behavior behind the publisher contract. |
+| `schemas/` | Bundles the machine-readable contracts for YAML configuration and canonical lineage JSON. | Helps editors, CI pipelines, external producers, and future versions agree on valid document structure. |
+| `observability/` | Configures human-readable and JSON logging. | Supports local troubleshooting and centralized production monitoring. |
+| `cli.py` | Implements `plugins`, `validate`, `plan`, and `run`. | Provides the user-facing control surface for the entire utility. |
+| `__main__.py` | Connects `python -m lineage_utility` to the CLI. | Allows the package to run even when the installed `lineage-util` command is unavailable. |
+
+### What should I modify?
+
+| Role | Usually modify | Usually leave unchanged |
+|---|---|---|
+| Operator or scheduler owner | `configs/lineage.yml`, environment variables, and deployment scripts | Parsers, domain models, and Purview internals |
+| New ETL integrator | A new module under `extractors/`, plugin registration, and tests | Existing extractors and the runner |
+| New catalog integrator | A new module under `publishers/`, plugin registration, and tests | Extractors and canonical domain objects |
+| Core maintainer | `contracts/`, `domain/`, `orchestration/`, and schemas | Environment-specific configuration |
+| Application user | Normally only configuration and CLI commands | Everything under `src/` |
 
 ## Requirements
 
